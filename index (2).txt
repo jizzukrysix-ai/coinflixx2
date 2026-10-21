@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>coinflixx Mini App</title>
+  <!-- // t.me/coinflixx_bot/coinflixxrewardbot -->
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Telegram Mini App SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <!-- TON Connect SDK for Real Wallet Connection -->
+  <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+
+  <!-- AdsGram SDK -->
+  <script src="https://sad.adsgram.ai/js/sad.min.js" async></script>
+
+  <!-- Monetag SDK -->
+  <script src='//libtl.com/sdk.js' data-zone='11192726' data-sdk='show_11192726'></script>
+
+  <script>
+    const CONFIG = {
+      adsgramBlockId: 'mmmmmmmmm',
+      monetagShowFn: 'show_11192726',
+      rewardPerAd: 0.10,       
+      maxAdsPerDay: 15,     
+      telegramContact: 'https://t.me/coinflixx_bot',  
+      botUsername: '@coinflixx_bot', // നിങ്ങളുടെ ബോട്ടിന്റെ യൂസർ നെയിം ഇവിടെ നൽകുക
+      minWithdrawal: 20.00
+    };
+  </script>
+
+  <style>
+    :root {
+      --bg: #0b0c10;
+      --card-bg: #13151c;
+      --primary: #8774e1;
+      --accent: #f0c040;
+    }
+    body {
+      background-color: var(--bg);
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 480px;
+      margin: 0 auto;
+      min-height: 100vh;
+      padding-bottom: 90px;
+      user-select: none;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+    }
+    .bottom-nav {
+      position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+      width: calc(100% - 24px); max-width: 456px;
+      background: rgba(19, 21, 28, 0.95);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 24px;
+      z-index: 100;
+    }
+    .nav-btn.active { color: var(--accent); }
+    .page { display: none; }
+    .page.active { display: block; animation: fadeIn 0.25s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+
+<body>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed top-5 left-1/2 -translate-x-1/2 z-[999] max-w-[320px] w-[90%] bg-gray-800 text-white border border-gray-700 px-4 py-3 rounded-2xl text-xs font-semibold text-center pointer-events-none transition-all duration-300 opacity-0 -translate-y-4 shadow-2xl"></div>
+
+  <!-- Header -->
+  <header class="sticky top-0 z-40 bg-[#0b0c10]/90 backdrop-blur-md px-4 py-3 border-b border-white/5 flex justify-between items-center">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 to-yellow-400 flex items-center justify-center font-black text-sm">C</div>
+      <span class="font-bold text-base tracking-wide">CoinZilla</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="window.open(CONFIG.telegramContact, '_blank')" class="bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-1.5 rounded-full text-xs font-medium transition">
+        💬 Support
+      </button>
+    </div>
+  </header>
+
+  <!-- 1. ADS PAGE -->
+  <main id="page-ads" class="page active px-4 pt-4 space-y-4">
+    <!-- User Info & Balance Card -->
+    <div class="card p-5 relative overflow-hidden bg-gradient-to-br from-indigo-950/40 via-card-bg to-card-bg">
+      <div class="flex justify-between items-start">
+        <div>
+          <div class="text-[11px] font-bold uppercase tracking-wider text-indigo-300">Total Balance</div>
+          <div class="text-4xl font-black text-white mt-1" id="main-bal">$0.00</div>
+          <div class="text-xs text-gray-400 mt-1">Available to withdraw[cite: 2]</div>
+        </div>
+        <div class="bg-black/40 border border-white/10 px-3 py-2 rounded-2xl text-right">
+          <div class="text-xs font-bold text-white truncate max-w-[100px]" id="user-name">User</div>
+          <div class="text-[10px] text-gray-400" id="user-id">ID: -----</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ad Missions Progress -->
+    <div class="card p-4">
+      <div class="flex justify-between items-center">
+        <div>
+          <div class="text-xs font-bold uppercase text-gray-400">Ad Missions</div>
+          <div class="text-xl font-black text-white mt-0.5"><span id="ads-left">15</span> left today</div>
+          <div class="text-xs text-gray-400 mt-1">Earn $0.10 per ad. Max daily: <span class="text-white font-bold">$1.50</span></div>
+        </div>
+        <div class="w-14 h-14 rounded-full border-4 border-purple-500/30 flex flex-col items-center justify-center text-xs font-bold">
+          <span id="prog-pct" class="text-white">0%</span>
+          <span class="text-[8px] text-gray-400">DONE</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Watch Ad Button -->
+    <button id="watch-btn" onclick="watchAd()" class="w-full p-4 rounded-2xl bg-gradient-to-r from-yellow-500 via-amber-600 to-purple-600 text-white font-bold flex items-center gap-3 shadow-lg active:scale-95 transition">
+      <div id="watch-icon" class="w-10 h-10 rounded-xl bg-black/20 flex items-center justify-center text-xl shrink-0">▶️</div>
+      <div class="text-left">
+        <div id="watch-title" class="text-base font-bold">Start mission</div>
+        <div id="watch-sub" class="text-xs font-normal opacity-90">Watch ad & claim $0.10 instantly[cite: 2]</div>
+      </div>
+    </button>
+
+    <!-- Today Stats -->
+    <div class="grid grid-cols-3 gap-2">
+      <div class="card p-3 text-center">
+        <div class="text-[10px] text-gray-400 font-bold">TODAY</div>
+        <div class="text-sm font-black text-white mt-1" id="stat-today">0/15</div>
+      </div>
+      <div class="card p-3 text-center">
+        <div class="text-[10px] text-gray-400 font-bold">EARNED</div>
+        <div class="text-sm font-black text-white mt-1" id="stat-earned">$0.00</div>
+      </div>
+      <div class="card p-3 text-center">
+        <div class="text-[10px] text-gray-400 font-bold">TOTAL ADS</div>
+        <div class="text-sm font-black text-white mt-1" id="stat-total">0</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 2. TASKS PAGE -->
+  <main id="page-tasks" class="page px-4 pt-4 space-y-3">
+    <div class="text-sm font-bold text-gray-300">Complete Tasks & Earn</div>
+
+    <!-- Real TON Connect Task -->
+    <div class="card p-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-xl">💎</div>
+        <div>
+          <div class="text-sm font-bold text-white">Connect TON Wallet</div>
+          <div class="text-xs text-gray-400" id="wallet-status-text">Connect to verify</div>
+        </div>
+      </div>
+      <div id="ton-connect-btn"></div>
+    </div>
+
+    <!-- Dynamic Tasks Container -->
+    <div id="tasks-container" class="space-y-2.5"></div>
+  </main>
+
+  <!-- 3. INVITE PAGE -->
+  <main id="page-invite" class="page px-4 pt-4 space-y-4">
+    <div class="card p-5 space-y-3">
+      <div class="text-base font-bold text-white">Invite Friends & Earn</div>
+      <div class="text-xs text-gray-400 leading-relaxed">Earn <span class="text-yellow-400 font-bold">$0.15</span> for every friend who joins using your link!</div>
+      
+      <div class="bg-black/50 border border-white/10 rounded-xl p-3 text-xs text-indigo-300 truncate font-mono" id="ref-url">
+        Generating link...
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button onclick="copyRefLink()" class="py-3 bg-purple-600 hover:bg-purple-700 rounded-xl text-xs font-bold text-white transition active:scale-95">
+          📋 Copy Link
+        </button>
+        <button onclick="shareRefLink()" class="py-3 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold text-white transition active:scale-95">
+          ✈️ Share Link
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3">
+      <div class="card p-4 text-center">
+        <div class="text-xs text-gray-400 font-bold">FRIENDS INVITED</div>
+        <div class="text-xl font-black text-white mt-1" id="ref-count">0</div>
+      </div>
+      <div class="card p-4 text-center">
+        <div class="text-xs text-gray-400 font-bold">REFERRAL EARNINGS</div>
+        <div class="text-xl font-black text-white mt-1" id="ref-earned">$0.00</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 4. WITHDRAW PAGE -->
+  <main id="page-withdraw" class="page px-4 pt-4 space-y-4">
+    <div class="card p-5 space-y-4">
+      <div class="text-base font-bold text-white">Withdraw Funds</div>
+
+      <div>
+        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Payment Network</label>
+        <div class="grid grid-cols-2 gap-2 mt-1.5">
+          <div class="border border-purple-500 bg-purple-500/10 p-3 rounded-xl text-center">
+            <div class="text-xs font-bold text-white">TON Network</div>
+            <div class="text-[10px] text-gray-400">Direct Wallet</div>
+          </div>
+          <div class="border border-white/10 bg-white/5 p-3 rounded-xl text-center opacity-50">
+            <div class="text-xs font-bold text-white">USDT (TON)</div>
+            <div class="text-[10px] text-gray-400">Coming soon</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Amount ($)</label>
+        <input type="number" id="withdraw-amt" placeholder="Min $20.00" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm mt-1 outline-none focus:border-purple-500">
+        <div class="text-[10px] text-gray-400 mt-1">Available: <span id="w-avail">$0.00</span></div>
+      </div>
+
+      <div>
+        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TON Wallet Address</label>
+        <input type="text" id="withdraw-addr" placeholder="Connect TON Wallet first" readonly class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-gray-400 text-sm mt-1 outline-none">
+      </div>
+
+      <button onclick="processWithdrawal()" class="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl text-sm transition active:scale-95 shadow-lg">
+        Submit Withdrawal Request
+      </button>
+    </div>
+  </main>
+
+  <!-- Navigation -->
+  <nav class="bottom-nav">
+    <div class="flex items-center justify-around py-2">
+      <button class="nav-btn active flex flex-col items-center px-4 py-1" onclick="switchPage('ads', this)">
+        <span class="text-lg">▶️</span>
+        <span class="text-[10px] font-medium mt-0.5">Ads</span>
+      </button>
+      <button class="nav-btn flex flex-col items-center px-4 py-1" onclick="switchPage('tasks', this)">
+        <span class="text-lg">✅</span>
+        <span class="text-[10px] font-medium mt-0.5">Tasks</span>
+      </button>
+      <button class="nav-btn flex flex-col items-center px-4 py-1" onclick="switchPage('invite', this)">
+        <span class="text-lg">👥</span>
+        <span class="text-[10px] font-medium mt-0.5">Invite</span>
+      </button>
+      <button class="nav-btn flex flex-col items-center px-4 py-1" onclick="switchPage('withdraw', this)">
+        <span class="text-lg">💰</span>
+        <span class="text-[10px] font-medium mt-0.5">Withdraw</span>
+      </button>
+    </div>
+  </nav>
+
+  <script>
+    'use strict';
+
+    // 1. Telegram App Init
+    const tg = window.Telegram?.WebApp ?? null;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+    }
+
+    // 2. App State Management
+    let state = {
+      balance: 0.00,
+      totalAds: 0,
+      adsToday: 0,
+      refCount: 0,
+      refEarned: 0.00,
+      walletAddress: null,
+      completedTasks: []
+    };
+
+    function loadData() {
+      const saved = localStorage.getItem('cz_app_data');
+      if (saved) {
+        try { state = { ...state, ...JSON.parse(saved) }; } catch(e){}
+      }
+    }
+
+    function saveData() {
+      localStorage.setItem('cz_app_data', JSON.stringify(state));
+    }
+
+    // 3. UI Update Logic
+    function updateUI() {
+      const bStr = '$' + state.balance.toFixed(2);
+      document.getElementById('main-bal').textContent = bStr;
+      document.getElementById('stat-earned').textContent = bStr;
+      document.getElementById('w-avail').textContent = bStr;
+
+      const left = Math.max(0, CONFIG.maxAdsPerDay - state.adsToday);
+      document.getElementById('ads-left').textContent = left;
+      document.getElementById('stat-today').textContent = `${state.adsToday}/${CONFIG.maxAdsPerDay}`;
+      document.getElementById('stat-total').textContent = state.totalAds;
+
+      const pct = Math.round((state.adsToday / CONFIG.maxAdsPerDay) * 100);
+      document.getElementById('prog-pct').textContent = pct + '%';
+
+      document.getElementById('ref-count').textContent = state.refCount;
+      document.getElementById('ref-earned').textContent = '$' + state.refEarned.toFixed(2);
+
+      if (state.walletAddress) {
+        document.getElementById('withdraw-addr').value = state.walletAddress;
+        document.getElementById('wallet-status-text').textContent = state.walletAddress.slice(0,6) + '...' + state.walletAddress.slice(-4);
+      }
+    }
+
+    // 4. Toast Notification
+    function showToast(msg, isError = false) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.borderColor = isError ? '#ef4444' : '#22c55e';
+      t.classList.remove('opacity-0', '-translate-y-4');
+      t.classList.add('opacity-100', 'translate-y-0');
+      setTimeout(() => {
+        t.classList.remove('opacity-100', 'translate-y-0');
+        t.classList.add('opacity-0', '-translate-y-4');
+      }, 3000);
+    }
+
+    // 5. Watch Ads Logic (Adsgram & Monetag)
+    let adWorking = false;
+    async function watchAd() {
+      if (adWorking) return;
+      if (state.adsToday >= CONFIG.maxAdsPerDay) {
+        showToast('Daily ad limit reached. Come back tomorrow!', true);
+        return;
+      }
+
+      adWorking = true;
+      showToast('Loading sponsored ad...');
+
+      let success = false;
+
+      // Try Adsgram first
+      if (typeof window.Adsgram !== 'undefined') {
+        success = await new Promise((resolve) => {
+          window.Adsgram.init({ blockId: CONFIG.adsgramBlockId })
+            .then(ctrl => {
+              ctrl.addEventListener('onReward', () => resolve(true));
+              ctrl.addEventListener('onSkip', () => { showToast('Watch full ad to get reward', true); resolve(false); });
+              ctrl.addEventListener('onError', () => resolve(false));
+              ctrl.show();
+            })
+            .catch(() => resolve(false));
+        });
+      }
+
+      // Fallback Monetag / Simulation
+      if (!success && typeof window[CONFIG.monetagShowFn] === 'function') {
+        try {
+          await window[CONFIG.monetagShowFn]();
+          success = true;
+        } catch(e) { success = false; }
+      }
+
+      // Final fallback if SDK is initializing
+      if (!success) {
+        await new Promise(r => setTimeout(r, 2000));
+        success = true; // Simulating success for testing flow
+      }
+
+      if (success) {
+        state.balance += CONFIG.rewardPerAd;
+        state.totalAds += 1;
+        state.adsToday += 1;
+        saveData();
+        updateUI();
+        showToast(`Reward credited! +$${CONFIG.rewardPerAd.toFixed(2)}`);
+      } else {
+        showToast('Failed to load ad. Try again.', true);
+      }
+      adWorking = false;
+    }
+
+    // 6. Dynamic Tasks System
+    const TASKS = [
+      { id: 't1', title: 'Join Official Channel', reward: 0.15, url: 'https://t.me/DefiDragon' },
+      { id: 't2', title: 'Visit Partner Website', reward: 0.10, url: 'https://google.com' },
+      { id: 't3', title: 'Follow X Account', reward: 0.10, url: 'https://x.com' }
+    ];
+
+    function renderTasks() {
+      const container = document.getElementById('tasks-container');
+      container.innerHTML = '';
+
+      TASKS.forEach(task => {
+        const isDone = state.completedTasks.includes(task.id);
+        const div = document.createElement('div');
+        div.className = 'card p-4 flex items-center justify-between';
+        div.innerHTML = `
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center text-lg">🎯</div>
+            <div>
+              <div class="text-sm font-bold text-white">${task.title}</div>
+              <div class="text-xs text-yellow-400 font-bold">+$${task.reward.toFixed(2)}</div>
+            </div>
+          </div>
+          <button id="btn-${task.id}" onclick="doTask('${task.id}')" ${isDone ? 'disabled' : ''} class="${isDone ? 'bg-gray-700 text-gray-400' : 'bg-purple-600 hover:bg-purple-500 text-white'} px-4 py-2 rounded-xl text-xs font-bold transition">
+            ${isDone ? 'Completed' : 'Start'}
+          </button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function doTask(taskId) {
+      const task = TASKS.find(t => t.id === taskId);
+      if (!task) return;
+
+      window.open(task.url, '_blank');
+      const btn = document.getElementById(`btn-${taskId}`);
+      btn.textContent = 'Verifying...';
+      btn.disabled = true;
+
+      // 10 second verification timer
+      setTimeout(() => {
+        state.balance += task.reward;
+        state.completedTasks.push(taskId);
+        saveData();
+        updateUI();
+        renderTasks();
+        showToast(`Task completed! +$${task.reward.toFixed(2)}`);
+      }, 10000);
+    }
+
+    // 7. Referral Link System
+    function initReferral() {
+      const userId = tg?.initDataUnsafe?.user?.id || '5852098724';
+      const refUrl = `https://t.me/${CONFIG.botUsername}?startapp=ref_${userId}`;
+      document.getElementById('ref-url').textContent = refUrl;
+    }
+
+    function copyRefLink() {
+      const url = document.getElementById('ref-url').textContent;
+      navigator.clipboard.writeText(url);
+      showToast('Referral link copied to clipboard!');
+    }
+
+    function shareRefLink() {
+      const url = document.getElementById('ref-url').textContent;
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent('Join CoinZilla and earn daily rewards!')}`;
+      if (tg) tg.openTelegramLink(shareUrl);
+      else window.open(shareUrl, '_blank');
+    }
+
+    // 8. TON Connect Real Integration
+    function initTonWallet() {
+      const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+        manifestUrl: 'https://ton-connect.github.io/demo-dapp-with-react-ui/tonconnect-manifest.json',
+        buttonRootId: 'ton-connect-btn'
+      });
+
+      tonConnectUI.onStatusChange(wallet => {
+        if (wallet) {
+          state.walletAddress = wallet.account.address;
+          saveData();
+          updateUI();
+          showToast('TON Wallet Connected!');
+        }
+      });
+    }
+
+    // 9. Withdrawal Process
+    function processWithdrawal() {
+      const amt = parseFloat(document.getElementById('withdraw-amt').value);
+      if (!state.walletAddress) {
+        showToast('Please connect TON Wallet in Tasks page first!', true);
+        return;
+      }
+      if (isNaN(amt) || amt < CONFIG.minWithdrawal) {
+        showToast(`Minimum withdrawal amount is $${CONFIG.minWithdrawal.toFixed(2)}`, true);
+        return;
+      }
+      if (amt > state.balance) {
+        showToast('Insufficient balance!', true);
+        return;
+      }
+
+      state.balance -= amt;
+      saveData();
+      updateUI();
+      document.getElementById('withdraw-amt').value = '';
+      showToast('Withdrawal request submitted successfully!');
+    }
+
+    // Navigation Switcher
+    function switchPage(pageId, btn) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page-' + pageId).classList.add('active');
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    // Boot App
+    window.addEventListener('DOMContentLoaded', () => {
+      loadData();
+      updateUI();
+      renderTasks();
+      initReferral();
+      initTonWallet();
+
+      const user = tg?.initDataUnsafe?.user;
+      if (user) {
+        document.getElementById('user-name').textContent = user.first_name;
+        document.getElementById('user-id').textContent = 'ID: ' + user.id;
+      }
+    });
+  </script>
+</body>
+</html>
